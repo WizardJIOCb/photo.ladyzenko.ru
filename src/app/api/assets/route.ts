@@ -7,6 +7,7 @@ import exifr from "exifr";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ensureStorage } from "@/lib/storage";
+import { generateMediaPreview, getMediaDimensions } from "@/lib/previews";
 
 function unauthorized(error: unknown) {
   return error instanceof Error && error.message === "UNAUTHORIZED";
@@ -77,7 +78,8 @@ export async function POST(request: Request) {
         : file.type.startsWith("video/")
           ? "video"
           : "file";
-      await writeFile(path.join(root, "originals", storageName), buffer);
+      const originalPath = path.join(root, "originals", storageName);
+      await writeFile(originalPath, buffer);
 
       let width: number | undefined;
       let height: number | undefined;
@@ -94,11 +96,35 @@ export async function POST(request: Request) {
             .resize(720, 720, { fit: "inside", withoutEnlargement: true })
             .webp({ quality: 82 })
             .toFile(path.join(root, "thumbs", thumbnailName));
+        } catch {
+          try {
+            const candidate = `${randomUUID()}.webp`;
+            await generateMediaPreview(originalPath, path.join(root, "thumbs", candidate), false);
+            thumbnailName = candidate;
+            const dimensions = await getMediaDimensions(originalPath);
+            width = dimensions.width;
+            height = dimensions.height;
+          } catch {
+            thumbnailName = undefined;
+          }
+        }
+        try {
           const exif = await exifr.parse(buffer, ["DateTimeOriginal", "CreateDate"]);
           const exifDate = exif?.DateTimeOriginal || exif?.CreateDate;
           if (exifDate) takenAt = new Date(exifDate);
         } catch {
-          // The original remains available even if preview metadata is unsupported.
+          // EXIF is optional and is absent from many image formats.
+        }
+      } else if (type === "video") {
+        try {
+          const candidate = `${randomUUID()}.webp`;
+          await generateMediaPreview(originalPath, path.join(root, "thumbs", candidate), true);
+          thumbnailName = candidate;
+          const dimensions = await getMediaDimensions(originalPath);
+          width = dimensions.width;
+          height = dimensions.height;
+        } catch {
+          thumbnailName = undefined;
         }
       }
 

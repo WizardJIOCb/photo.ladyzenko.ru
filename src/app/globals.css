@@ -195,7 +195,9 @@ img { display: block; max-width: 100%; }
 .album-meta { padding: 11px 3px 0; }
 .album-meta h3 { font-family: Georgia, serif; font-size: 18px; font-weight: 500; margin: 0 0 4px; }
 .album-meta p { color: var(--muted); font-size: 10px; margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.album-meta small { color: #aaa197; font-size: 9px; }
+.album-meta small { align-items: center; color: #938b82; display: flex; font-size: 9px; gap: 6px; }
+.album-meta small b { color: #746c63; font-weight: 700; }
+.album-meta small i { color: #c2b9ae; font-style: normal; }
 .new-album-card { align-items: center; background: rgba(255,255,255,.3); border: 1px dashed rgba(67,58,48,.2); border-radius: 15px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; min-height: 247px; padding: 20px; }
 .new-album-card span { align-items: center; background: #ebe2d7; border-radius: 50%; color: var(--terra); display: flex; height: 47px; justify-content: center; margin-bottom: 12px; width: 47px; }
 .new-album-card svg { height: 21px; width: 21px; }

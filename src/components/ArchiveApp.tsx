@@ -228,7 +228,7 @@ function AlbumCard({ album, onOpen }: { album: Album; onOpen: () => void }) {
   const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
   return <button className={clsx("album-card", `album-card--${album.color}`)} onClick={onOpen}>
     <div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Л</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div>
-    <div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small>Обновлён {format(new Date(album.updatedAt), "d MMMM", { locale: ru })}</small></div>
+    <div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div>
   </button>;
 }
 

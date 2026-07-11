@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "previews:regenerate": "tsx scripts/regenerate-previews.ts",
     "setup": "prisma generate && prisma db push && tsx prisma/seed.ts"
   },
   "prisma": {
