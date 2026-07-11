@@ -21,6 +21,7 @@ model User {
   comments         AssetComment[]
   assetReactions   AssetReaction[]
   commentReactions CommentReaction[]
+  publicShares     ShareLink[]
 }
 
 model Folder {
@@ -62,6 +63,7 @@ model Asset {
   albums        AlbumAsset[]
   comments      AssetComment[]
   reactions     AssetReaction[]
+  publicShares  ShareLink[]
 }
 
 model Album {
@@ -129,4 +131,17 @@ model CommentReaction {
 
   @@unique([commentId, userId, emoji])
   @@index([commentId])
+}
+
+model ShareLink {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  assetId     String
+  createdById String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([assetId, revokedAt])
 }
