@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ладно — семейный архив
 
-## Getting Started
+Приватный семейный архив для фотографий, видео, документов и связанных с ними историй. Интерфейс полностью адаптивный и рассчитан как на компьютер, так и на телефон.
 
-First, run the development server:
+## Что уже работает
+
+- семейные аккаунты с закрытым кодом приглашения;
+- загрузка нескольких фото, видео и документов перетаскиванием;
+- приватная выдача файлов только после авторизации;
+- автоматические миниатюры и чтение даты съёмки из EXIF;
+- общая хронология, поиск, фильтры, избранное и корзина;
+- папки и красивые альбомы с несколькими вариантами обложек;
+- подписи, длинные истории, ручная дата и добавление в несколько альбомов;
+- просмотр и скачивание оригиналов, воспроизведение видео;
+- неразрушающий редактор яркости, контраста, насыщенности и поворота;
+- Docker-развёртывание, healthcheck и скрипт резервного копирования.
+
+## Локальный запуск
 
 ```bash
+cp .env.example .env
+npm install
+npm run setup
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте `http://localhost:3000`. При `npm run setup` создаётся администратор из переменных `DEFAULT_ADMIN_*`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Развёртывание
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.production.example .env.production
+# заполните секреты
+docker compose up -d --build
+```
 
-## Learn More
+Контейнер слушает только `127.0.0.1:3012`. Публичный HTTPS-трафик должен идти через nginx; пример находится в `deploy/nginx.conf`.
 
-To learn more about Next.js, take a look at the following resources:
+Данные живут вне контейнера:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `data/archive.db` — база пользователей, альбомов и метаданных;
+- `storage/originals` — оригиналы и обработанные версии;
+- `storage/thumbs` — компактные превью.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Для полноценной резервной копии нужно сохранять обе директории одновременно. `deploy/backup.sh` делает архив и хранит ежедневные копии 30 дней.
 
-## Deploy on Vercel
+## Следующие сильные идеи
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- карта путешествий по GPS-данным снимков;
+- семейная лента «в этот день» и автоматические подборки по годам;
+- распознавание лиц с ручным подтверждением и поиск по людям;
+- QR-ссылки для печатных фотоальбомов, ведущие к видео и историям;
+- импорт из Google Photos, iCloud и сетевых папок;
+- комментарии и голосовые воспоминания родственников;
+- S3-совместимое хранилище и фоновые резервные копии;
+- клиентское шифрование особо личных альбомов.

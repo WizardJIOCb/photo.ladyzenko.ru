@@ -1,0 +1,259 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Album as AlbumIcon, Archive, CalendarDays, ChevronDown, File, Files, Folder, FolderPlus,
+  Heart, Home, Image as ImageIcon, LogOut, Menu, Plus, Search, Sparkles,
+  Trash2, Upload, UserPlus, Users, Video, X,
+} from "lucide-react";
+import { format, isThisYear, isToday, isYesterday } from "date-fns";
+import { ru } from "date-fns/locale";
+import clsx from "clsx";
+import type { Album, Asset, Folder as FolderType, User } from "@/components/types";
+import UploadModal from "@/components/UploadModal";
+import AssetViewer from "@/components/AssetViewer";
+
+type View = "home" | "all" | "albums" | "favorite" | "video" | "files" | "trash" | `album:${string}` | `folder:${string}`;
+
+const viewTitles: Partial<Record<View, string>> = {
+  home: "Добрый день", all: "Все воспоминания", albums: "Альбомы", favorite: "Избранное",
+  video: "Видео", files: "Документы и файлы", trash: "Корзина",
+};
+
+export default function ArchiveApp({ initialUser }: { initialUser: User }) {
+  const [user] = useState(initialUser);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [folders, setFolders] = useState<FolderType[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
+  const [view, setView] = useState<View>("home");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewer, setViewer] = useState<Asset | null>(null);
+  const [createKind, setCreateKind] = useState<"album" | "folder" | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const loadData = useCallback(async () => {
+    const [assetRes, albumRes, folderRes, usersRes] = await Promise.all([
+      fetch("/api/assets"), fetch("/api/albums"), fetch("/api/folders"), fetch("/api/users"),
+    ]);
+    if (assetRes.status === 401) return (window.location.href = "/login");
+    const [assetData, albumData, folderData, userData] = await Promise.all([
+      assetRes.json(), albumRes.json(), folderRes.json(), usersRes.json(),
+    ]);
+    setAssets(Array.isArray(assetData) ? assetData : []);
+    setAlbums(Array.isArray(albumData) ? albumData : []);
+    setFolders(Array.isArray(folderData) ? folderData : []);
+    setMembers(Array.isArray(userData) ? userData : []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadData, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadData]);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 2800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const activeAlbum = view.startsWith("album:") ? albums.find((a) => a.id === view.slice(6)) : null;
+  const activeFolder = view.startsWith("folder:") ? folders.find((f) => f.id === view.slice(7)) : null;
+
+  const filteredAssets = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return assets.filter((asset) => {
+      if (view === "favorite" && !asset.favorite) return false;
+      if (view === "video" && asset.type !== "video") return false;
+      if (view === "files" && asset.type !== "file") return false;
+      if (view === "trash" && !asset.trashed) return false;
+      if (view !== "trash" && asset.trashed) return false;
+      if (view.startsWith("album:") && !asset.albums.some((a) => a.albumId === view.slice(6))) return false;
+      if (view.startsWith("folder:") && asset.folderId !== view.slice(7)) return false;
+      if (q && ![asset.title, asset.description, asset.originalName, asset.uploader.name].some((item) => item?.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [assets, view, query]);
+
+  const groups = useMemo(() => {
+    const result: Record<string, Asset[]> = {};
+    filteredAssets.forEach((asset) => {
+      const date = new Date(asset.takenAt || asset.uploadedAt);
+      let label = format(date, "LLLL yyyy", { locale: ru });
+      if (isToday(date)) label = "Сегодня";
+      else if (isYesterday(date)) label = "Вчера";
+      result[label] ||= [];
+      result[label].push(asset);
+    });
+    return Object.entries(result);
+  }, [filteredAssets]);
+
+  function navigate(next: View) {
+    setView(next); setSidebarOpen(false); setQuery("");
+  }
+
+  function updateAsset(updated: Asset) {
+    setAssets((items) => items.map((item) => item.id === updated.id ? updated : item));
+    setViewer(updated);
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
+  const title = activeAlbum?.title || activeFolder?.name || viewTitles[view] || "Семейный архив";
+  const photos = assets.filter((a) => a.type === "photo" && !a.trashed).length;
+  const videos = assets.filter((a) => a.type === "video" && !a.trashed).length;
+
+  return (
+    <div className="app-shell">
+      <aside className={clsx("sidebar", sidebarOpen && "sidebar--open")}>
+        <div className="sidebar-head">
+          <div className="brand"><span className="brand-mark">Л</span><span>Ладно</span></div>
+          <button className="icon-button sidebar-close" onClick={() => setSidebarOpen(false)}><X /></button>
+        </div>
+        <nav className="sidebar-nav">
+          <SidebarItem icon={<Home />} label="Главная" active={view === "home"} onClick={() => navigate("home")} />
+          <SidebarItem icon={<ImageIcon />} label="Все воспоминания" active={view === "all"} count={assets.filter((a) => !a.trashed).length} onClick={() => navigate("all")} />
+          <SidebarItem icon={<AlbumIcon />} label="Альбомы" active={view === "albums" || view.startsWith("album:")} count={albums.length} onClick={() => navigate("albums")} />
+          <SidebarItem icon={<Heart />} label="Избранное" active={view === "favorite"} onClick={() => navigate("favorite")} />
+          <SidebarItem icon={<Video />} label="Видео" active={view === "video"} onClick={() => navigate("video")} />
+          <SidebarItem icon={<Files />} label="Файлы" active={view === "files"} onClick={() => navigate("files")} />
+          <SidebarItem icon={<Trash2 />} label="Корзина" active={view === "trash"} onClick={() => navigate("trash")} />
+        </nav>
+        <div className="sidebar-section-head"><span>Папки</span><button onClick={() => setCreateKind("folder")} title="Новая папка"><Plus /></button></div>
+        <div className="folder-list">
+          {folders.map((folder) => <SidebarItem key={folder.id} icon={<Folder />} label={folder.name} active={view === `folder:${folder.id}`} count={folder._count?.assets} onClick={() => navigate(`folder:${folder.id}`)} />)}
+          {!folders.length && <button className="empty-folder" onClick={() => setCreateKind("folder")}><FolderPlus /> Создать папку</button>}
+        </div>
+        <div className="sidebar-bottom">
+          <button className="member-stack" onClick={() => setMembersOpen(true)}>
+            <span className="avatars">{members.slice(0, 3).map((member) => <Avatar key={member.id} user={member} />)}</span>
+            <span><b>{members.length || 1} {plural(members.length || 1, "участник", "участника", "участников")}</b><small>Ваша семья</small></span>
+            <ChevronDown />
+          </button>
+          <button className="profile-button" onClick={logout}><Avatar user={user} /><span><b>{user.name}</b><small>{user.role === "admin" ? "Хранитель архива" : "Участник семьи"}</small></span><LogOut /></button>
+        </div>
+      </aside>
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+
+      <main className="main-content">
+        <header className="topbar">
+          <button className="icon-button menu-button" onClick={() => setSidebarOpen(true)}><Menu /></button>
+          <div className="search-box"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Найти фото, историю или человека…" />{query && <button onClick={() => setQuery("")}><X /></button>}</div>
+          <button className="button button--primary" onClick={() => setUploadOpen(true)}><Upload /> <span>Загрузить</span></button>
+        </header>
+
+        <div className="page-wrap">
+          {view === "home" ? (
+            <HomeView user={user} photos={photos} videos={videos} albums={albums} assets={assets.filter((a) => !a.trashed).slice(0, 10)} navigate={navigate} onUpload={() => setUploadOpen(true)} onOpen={setViewer} onNewAlbum={() => setCreateKind("album")} loading={loading} />
+          ) : view === "albums" ? (
+            <AlbumsView albums={albums} onOpen={(id) => navigate(`album:${id}`)} onCreate={() => setCreateKind("album")} loading={loading} />
+          ) : (
+            <GalleryView title={title} subtitle={activeAlbum?.description || (activeFolder ? "Файлы в семейной папке" : gallerySubtitle(view, filteredAssets.length))} groups={groups} loading={loading} onOpen={setViewer} onUpload={() => setUploadOpen(true)} trashed={view === "trash"} />
+          )}
+        </div>
+      </main>
+
+      {uploadOpen && <UploadModal albums={albums} folders={folders} defaultAlbumId={activeAlbum?.id} onClose={() => setUploadOpen(false)} onDone={(count) => { setUploadOpen(false); setToast(`${count} ${plural(count, "файл добавлен", "файла добавлены", "файлов добавлено")}`); loadData(); }} />}
+      {viewer && <AssetViewer asset={viewer} albums={albums} onClose={() => setViewer(null)} onUpdate={updateAsset} onDelete={() => { setAssets((items) => items.filter((item) => item.id !== viewer.id)); setViewer(null); setToast("Файл удалён навсегда"); }} />}
+      {createKind && <CreateModal kind={createKind} onClose={() => setCreateKind(null)} onCreated={() => { setCreateKind(null); setToast(createKind === "album" ? "Альбом создан" : "Папка создана"); loadData(); }} />}
+      {membersOpen && <MembersModal members={members} currentUser={user} onClose={() => setMembersOpen(false)} />}
+      {toast && <div className="toast"><Sparkles />{toast}</div>}
+    </div>
+  );
+}
+
+function SidebarItem({ icon, label, active, count, onClick }: { icon: React.ReactNode; label: string; active?: boolean; count?: number; onClick: () => void }) {
+  return <button className={clsx("nav-item", active && "nav-item--active")} onClick={onClick}><span>{icon}</span><b>{label}</b>{count !== undefined && <small>{count}</small>}</button>;
+}
+
+function Avatar({ user }: { user: Pick<User, "name" | "avatarColor"> }) {
+  const initials = user.name.split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  return <span className="avatar" style={{ background: user.avatarColor }}>{initials}</span>;
+}
+
+function HomeView({ user, photos, videos, albums, assets, navigate, onUpload, onOpen, onNewAlbum, loading }: { user: User; photos: number; videos: number; albums: Album[]; assets: Asset[]; navigate: (v: View) => void; onUpload: () => void; onOpen: (a: Asset) => void; onNewAlbum: () => void; loading: boolean }) {
+  const firstName = user.name.split(" ")[0];
+  return <>
+    <section className="welcome-row">
+      <div><div className="eyebrow"><Sparkles /> Семейная летопись</div><h1>Добрый день, {firstName}</h1><p>Здесь живут моменты, к которым хочется возвращаться.</p></div>
+      <div className="archive-stats"><div><ImageIcon /><span><b>{photos}</b><small>фото</small></span></div><div><Video /><span><b>{videos}</b><small>видео</small></span></div><div><AlbumIcon /><span><b>{albums.length}</b><small>альбомов</small></span></div></div>
+    </section>
+    <section className="memory-hero">
+      <div className="memory-hero__copy"><span>Соберите вашу историю</span><h2>Каждая фотография<br />заслуживает подписи</h2><p>Добавьте даты, воспоминания и объедините важные моменты в красивый альбом.</p><button className="button button--cream" onClick={onUpload}><Plus /> Добавить воспоминания</button></div>
+      <div className="hero-frames" aria-hidden="true"><div className="hero-photo hero-photo--a">наши<br />истории</div><div className="hero-photo hero-photo--b">лето</div><div className="hero-stamp">бережно<br />храним</div></div>
+    </section>
+    <SectionHead title="Последние воспоминания" action="Смотреть все" onAction={() => navigate("all")} />
+    {loading ? <SkeletonGrid /> : assets.length ? <div className="asset-grid asset-grid--recent">{assets.slice(0, 6).map((asset) => <AssetCard asset={asset} key={asset.id} onOpen={() => onOpen(asset)} />)}</div> : <EmptyState onUpload={onUpload} compact />}
+    <SectionHead title="Семейные альбомы" action="Все альбомы" onAction={() => navigate("albums")} />
+    <div className="album-grid album-grid--home">
+      {albums.slice(0, 3).map((album) => <AlbumCard key={album.id} album={album} onOpen={() => navigate(`album:${album.id}`)} />)}
+      <button className="new-album-card" onClick={onNewAlbum}><span><Plus /></span><b>Новый альбом</b><small>Соберите особенную историю</small></button>
+    </div>
+  </>;
+}
+
+function AlbumsView({ albums, onOpen, onCreate, loading }: { albums: Album[]; onOpen: (id: string) => void; onCreate: () => void; loading: boolean }) {
+  return <><div className="page-heading"><div><div className="eyebrow"><AlbumIcon /> Ваша коллекция</div><h1>Семейные альбомы</h1><p>Истории, собранные по событиям, людям и временам года.</p></div><button className="button button--secondary" onClick={onCreate}><Plus /> Новый альбом</button></div>
+    {loading ? <SkeletonGrid /> : <div className="album-grid"><button className="new-album-card new-album-card--large" onClick={onCreate}><span><Plus /></span><b>Создать альбом</b><small>Дайте истории красивое начало</small></button>{albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => onOpen(album.id)} />)}</div>}
+  </>;
+}
+
+function GalleryView({ title, subtitle, groups, loading, onOpen, onUpload, trashed }: { title: string; subtitle: string; groups: [string, Asset[]][]; loading: boolean; onOpen: (a: Asset) => void; onUpload: () => void; trashed: boolean }) {
+  const total = groups.reduce((sum, [, items]) => sum + items.length, 0);
+  return <><div className="page-heading"><div><div className="eyebrow"><CalendarDays /> По времени и событиям</div><h1>{title}</h1><p>{subtitle}</p></div>{!trashed && <button className="button button--secondary" onClick={onUpload}><Upload /> Добавить</button>}</div>
+    {loading ? <SkeletonGrid /> : total ? groups.map(([label, items]) => <section className="timeline-group" key={label}><div className="timeline-head"><h2>{label}</h2><span>{items.length} {plural(items.length, "момент", "момента", "моментов")}</span></div><div className="asset-grid">{items.map((asset) => <AssetCard key={asset.id} asset={asset} onOpen={() => onOpen(asset)} />)}</div></section>) : <EmptyState onUpload={onUpload} hiddenUpload={trashed} />}
+  </>;
+}
+
+function AssetCard({ asset, onOpen }: { asset: Asset; onOpen: () => void }) {
+  const date = new Date(asset.takenAt || asset.uploadedAt);
+  return <button className={clsx("asset-card", `asset-card--${asset.type}`)} onClick={onOpen}>
+    <div className="asset-media">
+      {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt={asset.title || asset.originalName} loading="lazy" /> : asset.type === "video" ? <div className="file-preview file-preview--video"><Video /><span>Видео</span></div> : <div className="file-preview"><File /><span>{asset.originalName.split(".").pop()?.toUpperCase()}</span></div>}
+      {asset.favorite && <span className="favorite-badge"><Heart fill="currentColor" /></span>}
+      {asset.type === "video" && <span className="play-badge">▶</span>}
+    </div>
+    <div className="asset-caption"><b>{asset.title || asset.originalName}</b><span>{isThisYear(date) ? format(date, "d MMMM", { locale: ru }) : format(date, "d MMMM yyyy", { locale: ru })}</span></div>
+  </button>;
+}
+
+function AlbumCard({ album, onOpen }: { album: Album; onOpen: () => void }) {
+  const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
+  return <button className={clsx("album-card", `album-card--${album.color}`)} onClick={onOpen}>
+    <div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Л</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div>
+    <div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small>Обновлён {format(new Date(album.updatedAt), "d MMMM", { locale: ru })}</small></div>
+  </button>;
+}
+
+function SectionHead({ title, action, onAction }: { title: string; action: string; onAction: () => void }) { return <div className="section-head"><h2>{title}</h2><button onClick={onAction}>{action} <span>→</span></button></div>; }
+function SkeletonGrid() { return <div className="asset-grid">{[1,2,3,4,5,6].map((n) => <div className="skeleton" key={n} />)}</div>; }
+function EmptyState({ onUpload, compact, hiddenUpload }: { onUpload: () => void; compact?: boolean; hiddenUpload?: boolean }) { return <div className={clsx("empty-state", compact && "empty-state--compact")}><div className="empty-illustration"><Archive /><span>✦</span></div><h3>Здесь скоро появятся воспоминания</h3><p>Загрузите фотографии, видео или документы — мы бережно разложим их по датам.</p>{!hiddenUpload && <button className="button button--primary" onClick={onUpload}><Upload /> Выбрать файлы</button>}</div>; }
+
+function CreateModal({ kind, onClose, onCreated }: { kind: "album" | "folder"; onClose: () => void; onCreated: () => void }) {
+  const [loading, setLoading] = useState(false); const [error, setError] = useState("");
+  async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setLoading(true); const data = Object.fromEntries(new FormData(event.currentTarget)); const response = await fetch(`/api/${kind === "album" ? "albums" : "folders"}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); if (response.ok) onCreated(); else { setError((await response.json()).error); setLoading(false); } }
+  return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}><div className="small-modal"><button className="modal-close" onClick={onClose}><X /></button><div className="modal-icon">{kind === "album" ? <AlbumIcon /> : <Folder />}</div><h2>{kind === "album" ? "Новый семейный альбом" : "Новая папка"}</h2><p>{kind === "album" ? "Придумайте название для будущей истории." : "Папка поможет аккуратно разложить файлы."}</p><form onSubmit={submit}><label>Название<input name={kind === "album" ? "title" : "name"} required placeholder={kind === "album" ? "Например, Лето на даче" : "Например, Старые сканы"} autoFocus /></label>{kind === "album" && <><label>Короткое описание<textarea name="description" placeholder="О чём этот альбом?" rows={3} /></label><label>Цвет обложки<select name="color"><option value="terracotta">Терракотовый</option><option value="sage">Шалфейный</option><option value="lavender">Лавандовый</option><option value="sand">Песочный</option><option value="ocean">Морской</option></select></label></>}{error && <div className="form-error">{error}</div>}<button className="button button--primary button--wide" disabled={loading}>{loading ? "Создаём…" : "Создать"}</button></form></div></div>;
+}
+
+function MembersModal({ members, currentUser, onClose }: { members: User[]; currentUser: User; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  async function copyInvite() { const response = await fetch("/api/invite"); const data = await response.json(); const text = response.ok ? `Присоединяйтесь к семейному архиву: ${window.location.origin}/login\nСемейный код: ${data.code}` : `${window.location.origin}/login`; await navigator.clipboard.writeText(text); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+  return <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}><div className="small-modal members-modal"><button className="modal-close" onClick={onClose}><X /></button><div className="modal-icon"><Users /></div><h2>Ваша семья</h2><p>Все участники видят общий архив и могут добавлять воспоминания.</p><div className="member-list">{members.map((member) => <div key={member.id}><Avatar user={member} /><span><b>{member.name}{member.id === currentUser.id && " · вы"}</b><small>{member.email}</small></span><em>{member.role === "admin" ? "Хранитель" : `${member._count?.assets || 0} файлов`}</em></div>)}</div><button className="button button--secondary button--wide" onClick={copyInvite}><UserPlus />{copied ? "Ссылка скопирована" : "Скопировать ссылку-приглашение"}</button></div></div>;
+}
+
+function gallerySubtitle(view: View, count: number) {
+  if (view === "favorite") return `${count} самых дорогих моментов`;
+  if (view === "video") return `${count} живых историй вашей семьи`;
+  if (view === "files") return `${count} важных документов и других файлов`;
+  if (view === "trash") return "Файлы, которые можно восстановить или удалить навсегда";
+  return `${count} ${plural(count, "воспоминание", "воспоминания", "воспоминаний")} в хронологическом порядке`;
+}
+
+export function plural(value: number, one: string, few: string, many: string) { const mod10 = value % 10, mod100 = value % 100; return mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? few : many; }

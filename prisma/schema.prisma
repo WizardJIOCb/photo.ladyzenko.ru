@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("member")
+  avatarColor  String   @default("#C96E48")
+  createdAt    DateTime @default(now())
+  assets       Asset[]
+  albums       Album[]
+  folders      Folder[]
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  ownerId   String
+  parentId  String?
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children  Folder[] @relation("FolderTree")
+  assets    Asset[]
+}
+
+model Asset {
+  id            String       @id @default(cuid())
+  type          String
+  originalName  String
+  storageName   String
+  thumbnailName String?
+  mimeType      String
+  size          Int
+  width         Int?
+  height        Int?
+  title         String?
+  description   String?
+  takenAt       DateTime?
+  uploadedAt    DateTime     @default(now())
+  favorite      Boolean      @default(false)
+  trashed       Boolean      @default(false)
+  rotation      Int          @default(0)
+  brightness    Int          @default(100)
+  contrast      Int          @default(100)
+  saturation    Int          @default(100)
+  uploaderId    String
+  folderId      String?
+  uploader      User         @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  folder        Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  albums        AlbumAsset[]
+}
+
+model Album {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  color       String       @default("terracotta")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  ownerId     String
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  assets      AlbumAsset[]
+}
+
+model AlbumAsset {
+  albumId  String
+  assetId  String
+  position Int    @default(0)
+  album    Album  @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  asset    Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([albumId, assetId])
+}
