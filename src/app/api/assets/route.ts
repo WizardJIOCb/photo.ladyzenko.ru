@@ -9,6 +9,8 @@ import { db } from "@/lib/db";
 import { ensureStorage } from "@/lib/storage";
 import { generateMediaPreview, getMediaDimensions } from "@/lib/previews";
 
+const audioExtensions = new Set([".aac", ".flac", ".m4a", ".mp3", ".oga", ".ogg", ".opus", ".wav"]);
+
 function unauthorized(error: unknown) {
   return error instanceof Error && error.message === "UNAUTHORIZED";
 }
@@ -77,6 +79,8 @@ export async function POST(request: Request) {
         ? "photo"
         : file.type.startsWith("video/")
           ? "video"
+          : file.type.startsWith("audio/") || audioExtensions.has(ext)
+            ? "audio"
           : "file";
       const originalPath = path.join(root, "originals", storageName);
       await writeFile(originalPath, buffer);

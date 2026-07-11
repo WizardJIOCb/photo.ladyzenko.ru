@@ -1,42 +1,46 @@
-import { readFile, stat } from "fs/promises";
+import { createReadStream } from "fs";
+import { stat } from "fs/promises";
+import { Readable } from "stream";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { mediaContentType, parseByteRange } from "@/lib/media-response";
 import { safeStoragePath } from "@/lib/storage";
-
-const contentTypes: Record<string, string> = {
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif",
-  heic: "image/heic", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", pdf: "application/pdf",
-};
 
 export async function GET(request: Request, context: { params: Promise<{ kind: string; name: string }> }) {
   if (!(await getCurrentUser())) return new NextResponse("Unauthorized", { status: 401 });
+
   try {
     const { kind, name } = await context.params;
     if (kind !== "originals" && kind !== "thumbs") return new NextResponse("Not found", { status: 404 });
+
     const filePath = safeStoragePath(kind, name);
     const info = await stat(filePath);
-    const ext = name.split(".").pop()?.toLowerCase() || "";
-    const type = contentTypes[ext] || "application/octet-stream";
-    const range = request.headers.get("range");
-    if (range) {
-      const [startText, endText] = range.replace(/bytes=/, "").split("-");
-      const start = Number(startText);
-      const end = endText ? Number(endText) : info.size - 1;
-      const file = await readFile(filePath);
-      return new NextResponse(file.subarray(start, end + 1), {
+    const contentType = mediaContentType(name);
+    const rangeHeader = request.headers.get("range");
+    const baseHeaders = {
+      "Content-Type": contentType,
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+    };
+
+    if (rangeHeader) {
+      const range = parseByteRange(rangeHeader, info.size);
+      if (!range) return new NextResponse(null, { status: 416, headers: { "Content-Range": `bytes */${info.size}` } });
+      const length = range.end - range.start + 1;
+      const stream = Readable.toWeb(createReadStream(filePath, { start: range.start, end: range.end }));
+      return new NextResponse(stream as unknown as BodyInit, {
         status: 206,
         headers: {
-          "Content-Type": type,
-          "Content-Range": `bytes ${start}-${end}/${info.size}`,
-          "Accept-Ranges": "bytes",
-          "Content-Length": String(end - start + 1),
-          "Cache-Control": "private, max-age=31536000, immutable",
+          ...baseHeaders,
+          "Content-Range": `bytes ${range.start}-${range.end}/${info.size}`,
+          "Content-Length": String(length),
         },
       });
     }
-    return new NextResponse(await readFile(filePath), {
-      headers: { "Content-Type": type, "Content-Length": String(info.size), "Cache-Control": "private, max-age=31536000, immutable" },
-    });
+
+    const stream = Readable.toWeb(createReadStream(filePath));
+    return new NextResponse(stream as unknown as BodyInit, { headers: { ...baseHeaders, "Content-Length": String(info.size) } });
   } catch {
     return new NextResponse("Not found", { status: 404 });
   }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CalendarDays, Download, File, Image as ImageIcon, ShieldCheck, Video } from "lucide-react";
+import { AudioLines, CalendarDays, Download, File, Image as ImageIcon, ShieldCheck, Video } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { findActiveShare } from "@/lib/share";
@@ -19,6 +19,7 @@ export default async function PublicSharePage({ params }: { params: Promise<{ to
   const { asset } = share;
   const date = new Date(asset.takenAt || asset.uploadedAt);
   const mediaUrl = `/share/${token}/media`;
+  const audio = asset.type === "audio" || asset.mimeType.startsWith("audio/") || /\.(aac|flac|m4a|mp3|oga|ogg|opus|wav)$/i.test(asset.originalName);
 
   return (
     <main className="public-share-page">
@@ -32,13 +33,15 @@ export default async function PublicSharePage({ params }: { params: Promise<{ to
             <img src={mediaUrl} alt={asset.title || asset.originalName} />
           ) : asset.type === "video" ? (
             <video src={mediaUrl} controls playsInline />
+          ) : audio ? (
+            <div className="public-audio-preview"><div><AudioLines /></div><span>Аудиозапись</span><b>{asset.title || asset.originalName}</b><audio src={mediaUrl} controls preload="metadata" /></div>
           ) : (
             <div className="public-file-preview"><File /><b>{asset.originalName}</b><span>{formatBytes(asset.size)}</span></div>
           )}
         </div>
         <div className="public-share-info">
           <div className="eyebrow">
-            {asset.type === "photo" ? <ImageIcon /> : asset.type === "video" ? <Video /> : <File />}
+            {asset.type === "photo" ? <ImageIcon /> : asset.type === "video" ? <Video /> : audio ? <AudioLines /> : <File />}
             Семейное воспоминание
           </div>
           <h1>{asset.title || asset.originalName}</h1>

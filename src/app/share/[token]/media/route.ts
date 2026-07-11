@@ -1,6 +1,9 @@
-import { open, readFile, stat } from "fs/promises";
+import { createReadStream } from "fs";
+import { stat } from "fs/promises";
+import { Readable } from "stream";
 import { NextResponse } from "next/server";
 import { findActiveShare } from "@/lib/share";
+import { canRenderInline, mediaContentType, parseByteRange } from "@/lib/media-response";
 import { safeStoragePath } from "@/lib/storage";
 
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
@@ -12,16 +15,13 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     const filePath = safeStoragePath("originals", asset.storageName);
     const info = await stat(filePath);
     const download = new URL(request.url).searchParams.get("download") === "1";
-    const safeInline = (
-      (asset.mimeType.startsWith("image/") && asset.mimeType !== "image/svg+xml")
-      || asset.mimeType.startsWith("video/")
-      || asset.mimeType === "application/pdf"
-    );
+    const contentType = mediaContentType(asset.storageName, asset.mimeType);
+    const safeInline = canRenderInline(contentType);
     const forceDownload = download || !safeInline;
     const disposition = `${forceDownload ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(asset.originalName)}`;
     const range = request.headers.get("range");
     const baseHeaders = {
-      "Content-Type": safeInline ? asset.mimeType : "application/octet-stream",
+      "Content-Type": safeInline ? contentType : "application/octet-stream",
       "Content-Disposition": disposition,
       "Cache-Control": "private, no-store",
       "Accept-Ranges": "bytes",
@@ -30,21 +30,18 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     };
 
     if (range) {
-      const [startText, endText] = range.replace(/bytes=/, "").split("-");
-      const start = Math.max(0, Number(startText) || 0);
-      const end = Math.min(endText ? Number(endText) : info.size - 1, info.size - 1);
-      if (start > end) return new NextResponse(null, { status: 416 });
-      const length = end - start + 1;
-      const handle = await open(filePath, "r");
-      const buffer = Buffer.alloc(length);
-      try { await handle.read(buffer, 0, length, start); } finally { await handle.close(); }
-      return new NextResponse(buffer, {
+      const parsedRange = parseByteRange(range, info.size);
+      if (!parsedRange) return new NextResponse(null, { status: 416, headers: { "Content-Range": `bytes */${info.size}` } });
+      const length = parsedRange.end - parsedRange.start + 1;
+      const stream = Readable.toWeb(createReadStream(filePath, { start: parsedRange.start, end: parsedRange.end }));
+      return new NextResponse(stream as unknown as BodyInit, {
         status: 206,
-        headers: { ...baseHeaders, "Content-Range": `bytes ${start}-${end}/${info.size}`, "Content-Length": String(length) },
+        headers: { ...baseHeaders, "Content-Range": `bytes ${parsedRange.start}-${parsedRange.end}/${info.size}`, "Content-Length": String(length) },
       });
     }
 
-    return new NextResponse(await readFile(filePath), {
+    const stream = Readable.toWeb(createReadStream(filePath));
+    return new NextResponse(stream as unknown as BodyInit, {
       headers: { ...baseHeaders, "Content-Length": String(info.size) },
     });
   } catch {

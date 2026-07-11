@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  AudioLines,
   Calendar,
   Check,
   CheckCircle2,
@@ -26,7 +27,7 @@ import {
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import clsx from "clsx";
-import type { Album, Asset, User as ArchiveUser } from "@/components/types";
+import { isAudioAsset, type Album, type Asset, type User as ArchiveUser } from "@/components/types";
 import CommentsPanel from "@/components/CommentsPanel";
 
 type Editor = { rotation: number; brightness: number; contrast: number; saturation: number };
@@ -161,6 +162,7 @@ export default function AssetViewer({ asset, albums, currentUser, onClose, onUpd
   }
 
   const filter = `brightness(${editor.brightness}%) contrast(${editor.contrast}%) saturate(${editor.saturation}%)`;
+  const audio = isAudioAsset(asset);
 
   return (
     <div className="viewer-backdrop">
@@ -203,6 +205,14 @@ export default function AssetViewer({ asset, albums, currentUser, onClose, onUpd
               />
             ) : asset.type === "video" ? (
               <video src={`/media/originals/${asset.storageName}`} controls autoPlay />
+            ) : audio ? (
+              <div className="audio-stage">
+                <div className="audio-stage-art"><AudioLines /></div>
+                <span>Аудиозапись</span>
+                <h2>{asset.title || asset.originalName}</h2>
+                <audio src={`/media/originals/${asset.storageName}`} controls preload="metadata" />
+                <p>{formatBytes(asset.size)}</p>
+              </div>
             ) : (
               <div className="document-stage">
                 <File />
