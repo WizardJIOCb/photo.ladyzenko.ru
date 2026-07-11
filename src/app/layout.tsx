@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ладно — семейный архив",
+  title: "Фото — семейный архив",
   description: "Тёплое место для семейных фото, видео и историй",
 };
 

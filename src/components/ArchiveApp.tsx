@@ -114,7 +114,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
     <div className="app-shell">
       <aside className={clsx("sidebar", sidebarOpen && "sidebar--open")}>
         <div className="sidebar-head">
-          <div className="brand"><span className="brand-mark">Л</span><span>Ладно</span></div>
+          <div className="brand"><span className="brand-mark">Ф</span><span>Фото</span></div>
           <button className="icon-button sidebar-close" onClick={() => setSidebarOpen(false)}><X /></button>
         </div>
         <nav className="sidebar-nav">
@@ -227,7 +227,7 @@ function AssetCard({ asset, onOpen }: { asset: Asset; onOpen: () => void }) {
 function AlbumCard({ album, onOpen }: { album: Album; onOpen: () => void }) {
   const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
   return <button className={clsx("album-card", `album-card--${album.color}`)} onClick={onOpen}>
-    <div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Л</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div>
+    <div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Ф</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div>
     <div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div>
   </button>;
 }

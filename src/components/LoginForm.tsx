@@ -30,7 +30,7 @@ export default function LoginForm({ inviteCode = "" }: { inviteCode?: string }) 
   return (
     <main className="login-page">
       <section className="login-visual">
-        <div className="brand brand--light"><span className="brand-mark">Л</span><span>Ладно</span></div>
+        <div className="brand brand--light"><span className="brand-mark">Ф</span><span>Фото</span></div>
         <div className="memory-collage" aria-hidden="true">
           <div className="collage-card collage-card--one"><span>лето</span></div>
           <div className="collage-card collage-card--two"><span>вместе</span></div>
@@ -45,7 +45,7 @@ export default function LoginForm({ inviteCode = "" }: { inviteCode?: string }) 
       </section>
       <section className="login-panel">
         <div className="login-card">
-          <div className="login-mobile-brand brand"><span className="brand-mark">Л</span><span>Ладно</span></div>
+          <div className="login-mobile-brand brand"><span className="brand-mark">Ф</span><span>Фото</span></div>
           <div className="eyebrow"><Images size={15} /> Семейный архив</div>
           <h1>{register ? "Создадим ваш архив" : "С возвращением"}</h1>
           <p>{register ? "Соберите все семейные истории в одном надёжном месте." : "Ваши воспоминания уже ждут вас внутри."}</p>
