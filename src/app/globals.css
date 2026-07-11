@@ -215,6 +215,7 @@ img { display: block; max-width: 100%; }
 .folder-preview-item > span { font-size: 8px; font-weight: 800; letter-spacing: 1px; }
 .folder-preview-item--audio { background: radial-gradient(circle at 25% 20%, rgba(255,255,255,.15), transparent 35%), linear-gradient(145deg, #5f746b, #8a6b61); color: white; }
 .folder-preview-item--audio > svg { height: 34px; width: 34px; }
+.folder-preview-item--audio > b { -webkit-box-orient: vertical; -webkit-line-clamp: 2; display: -webkit-box; font-size: 7px; font-weight: 600; line-height: 1.2; max-width: calc(100% - 12px); opacity: .86; overflow: hidden; overflow-wrap: anywhere; text-align: center; }
 .folder-preview-item--file { background: linear-gradient(145deg, #ddd4c8, #eee7dd); }
 .folder-preview-item > i { align-items: center; background: rgba(28,27,25,.7); border-radius: 50%; color: white; display: flex; height: 25px; justify-content: center; left: 8px; position: absolute; top: 8px; width: 25px; }
 .folder-preview-item > i svg { height: 12px; width: 12px; }
@@ -259,6 +260,7 @@ img { display: block; max-width: 100%; }
 .album-preview-item > span { font-size: 8px; font-weight: 800; letter-spacing: 1px; }
 .album-preview-item--audio { background: radial-gradient(circle at 25% 20%, rgba(255,255,255,.15), transparent 35%), linear-gradient(145deg, #596f66, #806158); }
 .album-preview-item--audio > svg { height: 36px; width: 36px; }
+.album-preview-item--audio > b { -webkit-box-orient: vertical; -webkit-line-clamp: 2; display: -webkit-box; font-size: 7px; font-weight: 600; line-height: 1.18; max-width: calc(100% - 10px); opacity: .88; overflow: hidden; overflow-wrap: anywhere; text-align: center; }
 .album-preview-item--file { background: linear-gradient(145deg, rgba(95,84,73,.3), rgba(255,255,255,.2)); }
 .album-preview-item > i { align-items: center; background: rgba(30,28,25,.68); border-radius: 50%; display: flex; height: 24px; justify-content: center; left: 7px; position: absolute; top: 7px; width: 24px; }
 .album-preview-item > i svg { height: 11px; width: 11px; }

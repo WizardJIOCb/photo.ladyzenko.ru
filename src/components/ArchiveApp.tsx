@@ -292,7 +292,7 @@ function FolderPreviewCard({ folder, assets, onOpen }: { folder: FolderType; ass
 function FolderPreviewItem({ asset, extra }: { asset: Asset; extra: number }) {
   const audio = isAudioAsset(asset);
   return <div className={clsx("folder-preview-item", audio && "folder-preview-item--audio", !asset.thumbnailName && !audio && "folder-preview-item--file")} title={asset.title || asset.originalName}>
-    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
+    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span><b title={asset.originalName}>{asset.originalName}</b></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
     {asset.type === "video" && asset.thumbnailName && <i><Video /></i>}{extra > 0 && <em>+{extra}</em>}
   </div>;
 }
@@ -308,8 +308,8 @@ function AlbumCard({ album, onOpen, onEdit }: { album: Album; onOpen: () => void
 
 function AlbumPreviewItem({ asset }: { asset: Asset }) {
   const audio = isAudioAsset(asset);
-  return <div className={clsx("album-preview-item", audio && "album-preview-item--audio", !asset.thumbnailName && !audio && "album-preview-item--file")}>
-    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
+  return <div className={clsx("album-preview-item", audio && "album-preview-item--audio", !asset.thumbnailName && !audio && "album-preview-item--file")} title={asset.originalName}>
+    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span><b>{asset.originalName}</b></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
     {asset.type === "video" && asset.thumbnailName && <i><Video /></i>}
   </div>;
 }
