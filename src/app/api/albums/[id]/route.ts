@@ -20,7 +20,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       data: parsed.data,
       include: {
         owner: { select: { id: true, name: true, avatarColor: true } },
-        assets: { orderBy: { position: "asc" }, take: 4, include: { asset: true } },
+        assets: { orderBy: { asset: { uploadedAt: "desc" } }, take: 4, include: { asset: true } },
         _count: { select: { assets: true } },
       },
     }));

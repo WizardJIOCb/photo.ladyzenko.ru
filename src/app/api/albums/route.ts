@@ -16,7 +16,7 @@ export async function GET() {
       include: {
         owner: { select: { id: true, name: true, avatarColor: true } },
         assets: {
-          orderBy: { position: "asc" },
+          orderBy: { asset: { uploadedAt: "desc" } },
           take: 4,
           include: { asset: true },
         },

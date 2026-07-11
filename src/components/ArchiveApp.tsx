@@ -298,11 +298,20 @@ function FolderPreviewItem({ asset, extra }: { asset: Asset; extra: number }) {
 }
 
 function AlbumCard({ album, onOpen, onEdit }: { album: Album; onOpen: () => void; onEdit?: () => void }) {
-  const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
+  const previews = album.assets.map((item) => item.asset).slice(0, 4);
+  const visualOnly = previews.length > 0 && previews.every((asset) => asset.thumbnailName);
   return <article className={clsx("album-card", `album-card--${album.color}`)}>
-    <button className="album-card-main" onClick={onOpen}><div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Ф</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div><div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div></button>
+    <button className="album-card-main" onClick={onOpen}><div className="album-cover">{visualOnly ? <div className="album-polaroids">{previews.slice(0, 3).map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />)}</div> : previews.length ? <div className={clsx("album-file-collage", `album-file-collage--${previews.length}`)}>{previews.map((asset) => <AlbumPreviewItem key={asset.id} asset={asset} />)}</div> : <div className="album-placeholder"><span>Ф</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div><div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div></button>
     {onEdit && <button className="album-edit-button" onClick={onEdit} aria-label={`Переименовать альбом ${album.title}`} title="Переименовать"><Pencil /></button>}
   </article>;
+}
+
+function AlbumPreviewItem({ asset }: { asset: Asset }) {
+  const audio = isAudioAsset(asset);
+  return <div className={clsx("album-preview-item", audio && "album-preview-item--audio", !asset.thumbnailName && !audio && "album-preview-item--file")}>
+    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
+    {asset.type === "video" && asset.thumbnailName && <i><Video /></i>}
+  </div>;
 }
 
 function SectionHead({ title, action, onAction }: { title: string; action: string; onAction: () => void }) { return <div className="section-head"><h2>{title}</h2><button onClick={onAction}>{action} <span>→</span></button></div>; }
