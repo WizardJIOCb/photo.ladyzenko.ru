@@ -167,6 +167,10 @@ img { display: block; max-width: 100%; }
 .file-preview--video { background: linear-gradient(145deg, #4a5850, #8e6b5d); color: white; }
 .page-heading { align-items: flex-end; display: flex; justify-content: space-between; margin-bottom: 36px; }
 .timeline-group { margin-bottom: 38px; }
+.search-heading { margin-bottom: 30px; }
+.search-section { margin-bottom: 40px; }
+.search-album-grid { margin-bottom: 8px; }
+.search-empty { margin-top: 0; }
 .timeline-head { align-items: baseline; border-bottom: 1px solid var(--line); display: flex; gap: 12px; margin-bottom: 18px; padding-bottom: 12px; }
 .timeline-head h2::first-letter { text-transform: uppercase; }
 .timeline-head span { color: #9a9289; font-size: 10px; }

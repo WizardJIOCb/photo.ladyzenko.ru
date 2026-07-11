@@ -63,9 +63,9 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
 
   const activeAlbum = view.startsWith("album:") ? albums.find((a) => a.id === view.slice(6)) : null;
   const activeFolder = view.startsWith("folder:") ? folders.find((f) => f.id === view.slice(7)) : null;
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
 
   const filteredAssets = useMemo(() => {
-    const q = query.toLowerCase().trim();
     return assets.filter((asset) => {
       if (view === "favorite" && !asset.favorite) return false;
       if (view === "video" && asset.type !== "video") return false;
@@ -74,10 +74,32 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
       if (view !== "trash" && asset.trashed) return false;
       if (view.startsWith("album:") && !asset.albums.some((a) => a.albumId === view.slice(6))) return false;
       if (view.startsWith("folder:") && asset.folderId !== view.slice(7)) return false;
-      if (q && ![asset.title, asset.description, asset.originalName, asset.uploader.name].some((item) => item?.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [assets, view, query]);
+  }, [assets, view]);
+
+  const searchAssets = useMemo(() => {
+    if (!normalizedQuery) return [];
+    return assets.filter((asset) => {
+      if (asset.trashed) return false;
+      const date = new Date(asset.takenAt || asset.uploadedAt);
+      const searchable = [
+        asset.title,
+        asset.description,
+        asset.originalName,
+        asset.uploader.name,
+        format(date, "d MMMM yyyy", { locale: ru }),
+        format(date, "LLLL yyyy", { locale: ru }),
+      ];
+      return searchable.some((value) => value?.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
+    });
+  }, [assets, normalizedQuery]);
+
+  const searchAlbums = useMemo(() => {
+    if (!normalizedQuery) return [];
+    return albums.filter((album) => [album.title, album.description, album.owner.name]
+      .some((value) => value?.toLocaleLowerCase("ru-RU").includes(normalizedQuery)));
+  }, [albums, normalizedQuery]);
 
   const groups = useMemo(() => {
     const result: Record<string, Asset[]> = {};
@@ -145,12 +167,14 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
       <main className="main-content">
         <header className="topbar">
           <button className="icon-button menu-button" onClick={() => setSidebarOpen(true)}><Menu /></button>
-          <div className="search-box"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Найти фото, историю или человека…" />{query && <button onClick={() => setQuery("")}><X /></button>}</div>
+          <div className="search-box"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQuery("")} aria-label="Поиск по семейному архиву" placeholder="Найти фото, историю или человека…" />{query && <button onClick={() => setQuery("")} aria-label="Очистить поиск"><X /></button>}</div>
           <button className="button button--primary" onClick={() => setUploadOpen(true)}><Upload /> <span>Загрузить</span></button>
         </header>
 
         <div className="page-wrap">
-          {view === "home" ? (
+          {normalizedQuery ? (
+            <SearchView query={query.trim()} assets={searchAssets} albums={searchAlbums} loading={loading} onOpenAsset={setViewer} onOpenAlbum={(id) => navigate(`album:${id}`)} />
+          ) : view === "home" ? (
             <HomeView user={user} photos={photos} videos={videos} albums={albums} assets={assets.filter((a) => !a.trashed).slice(0, 10)} navigate={navigate} onUpload={() => setUploadOpen(true)} onOpen={setViewer} onNewAlbum={() => setCreateKind("album")} loading={loading} />
           ) : view === "albums" ? (
             <AlbumsView albums={albums} onOpen={(id) => navigate(`album:${id}`)} onCreate={() => setCreateKind("album")} loading={loading} />
@@ -202,6 +226,17 @@ function HomeView({ user, photos, videos, albums, assets, navigate, onUpload, on
 function AlbumsView({ albums, onOpen, onCreate, loading }: { albums: Album[]; onOpen: (id: string) => void; onCreate: () => void; loading: boolean }) {
   return <><div className="page-heading"><div><div className="eyebrow"><AlbumIcon /> Ваша коллекция</div><h1>Семейные альбомы</h1><p>Истории, собранные по событиям, людям и временам года.</p></div><button className="button button--secondary" onClick={onCreate}><Plus /> Новый альбом</button></div>
     {loading ? <SkeletonGrid /> : <div className="album-grid"><button className="new-album-card new-album-card--large" onClick={onCreate}><span><Plus /></span><b>Создать альбом</b><small>Дайте истории красивое начало</small></button>{albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => onOpen(album.id)} />)}</div>}
+  </>;
+}
+
+function SearchView({ query, assets, albums, loading, onOpenAsset, onOpenAlbum }: { query: string; assets: Asset[]; albums: Album[]; loading: boolean; onOpenAsset: (asset: Asset) => void; onOpenAlbum: (id: string) => void }) {
+  const total = assets.length + albums.length;
+  return <>
+    <div className="page-heading search-heading"><div><div className="eyebrow"><Search /> Поиск по архиву</div><h1>Результаты поиска</h1><p>По запросу «{query}» {total ? `найдено ${total}` : "ничего не найдено"}</p></div></div>
+    {loading ? <SkeletonGrid /> : total ? <>
+      {albums.length > 0 && <section className="search-section"><div className="timeline-head"><h2>Альбомы</h2><span>{albums.length}</span></div><div className="album-grid search-album-grid">{albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => onOpenAlbum(album.id)} />)}</div></section>}
+      {assets.length > 0 && <section className="search-section"><div className="timeline-head"><h2>Фото, видео и файлы</h2><span>{assets.length}</span></div><div className="asset-grid">{assets.map((asset) => <AssetCard key={asset.id} asset={asset} onOpen={() => onOpenAsset(asset)} />)}</div></section>}
+    </> : <div className="empty-state search-empty"><div className="empty-illustration"><Search /><span>?</span></div><h3>Ничего не нашлось</h3><p>Попробуйте имя файла, название альбома, подпись, имя участника или дату — например «июль 2026».</p></div>}
   </>;
 }
 
