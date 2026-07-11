@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff, Images, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Images, LockKeyhole, Sparkles } from "lucide-react";
 
-export default function LoginForm() {
-  const [register, setRegister] = useState(false);
+export default function LoginForm({ inviteCode = "" }: { inviteCode?: string }) {
+  const [register, setRegister] = useState(Boolean(inviteCode));
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +53,7 @@ export default function LoginForm() {
             {register && <label>Как вас зовут<input name="name" required autoComplete="name" placeholder="Например, Анна" /></label>}
             <label>Электронная почта<input name="email" type="email" required autoComplete="email" placeholder="name@example.com" /></label>
             <label>Пароль<div className="password-field"><input name="password" type={showPassword ? "text" : "password"} minLength={register ? 8 : 1} required autoComplete={register ? "new-password" : "current-password"} placeholder="••••••••" /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Показать пароль">{showPassword ? <EyeOff /> : <Eye />}</button></div></label>
-            {register && <label>Семейный код<input name="inviteCode" required autoComplete="off" placeholder="Код из приглашения" /></label>}
+            {register && inviteCode ? <div className="invite-accepted"><CheckCircle2 /><span><b>Приглашение в семью получено</b><small>После регистрации вы сразу попадёте в общий архив.</small></span><input type="hidden" name="inviteCode" value={inviteCode} /></div> : register && <label>Семейный код<input name="inviteCode" required autoComplete="off" placeholder="Код из приглашения" /></label>}
             {error && <div className="form-error">{error}</div>}
             <button className="button button--primary button--wide" disabled={loading}>
               {loading ? "Подождите…" : register ? "Создать архив" : "Войти в архив"}<ArrowRight size={18} />

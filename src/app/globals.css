@@ -73,6 +73,11 @@ img { display: block; max-width: 100%; }
 .password-field button { background: transparent; border: 0; color: var(--muted); cursor: pointer; position: absolute; right: 12px; top: 13px; }
 .password-field svg { height: 20px; width: 20px; }
 .form-error { background: #f8e6e0; border-radius: 9px; color: #9f402d; font-size: 13px; padding: 11px 13px; }
+.invite-accepted { align-items: center; background: #e7eee7; border: 1px solid rgba(83,115,88,.2); border-radius: 11px; color: #526f58; display: flex; gap: 11px; padding: 12px 14px; }
+.invite-accepted > svg { flex: 0 0 auto; height: 21px; width: 21px; }
+.invite-accepted > span { display: grid; gap: 2px; }
+.invite-accepted b { font-size: 11px; }
+.invite-accepted small { color: #748178; font-size: 9px; }
 .auth-switch { background: none; border: 0; color: var(--terra); cursor: pointer; display: block; font-size: 13px; font-weight: 700; margin: 20px auto 0; }
 .privacy-note { align-items: center; color: #99938a; display: flex; font-size: 11px; gap: 6px; justify-content: center; margin-top: 32px; }
 
