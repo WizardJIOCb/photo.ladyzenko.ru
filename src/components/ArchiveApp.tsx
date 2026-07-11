@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Album as AlbumIcon, Archive, AudioLines, CalendarDays, ChevronDown, File, Files, Folder, FolderPlus,
-  Heart, Home, Image as ImageIcon, LogOut, Menu, Pencil, Plus, Search, Sparkles,
-  Trash2, Upload, UserPlus, Users, Video, X,
+  Album as AlbumIcon, Archive, AudioLines, CalendarDays, CheckCircle2, ChevronDown, Copy, ExternalLink,
+  File, Files, Folder, FolderPlus, Heart, Home, Image as ImageIcon, Link2, LogOut, Menu, Pencil, Plus,
+  Search, Share2, ShieldAlert, Sparkles, Trash2, Upload, UserPlus, Users, Video, X,
 } from "lucide-react";
 import { format, isThisYear, isToday, isYesterday } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -33,6 +33,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
   const [viewer, setViewer] = useState<Asset | null>(null);
   const [createKind, setCreateKind] = useState<"album" | "folder" | null>(null);
   const [editingFolder, setEditingFolder] = useState<FolderType | null>(null);
+  const [sharingFolder, setSharingFolder] = useState<FolderType | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -180,7 +181,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
           ) : view === "albums" ? (
             <AlbumsView albums={albums} onOpen={(id) => navigate(`album:${id}`)} onCreate={() => setCreateKind("album")} loading={loading} />
           ) : (
-            <GalleryView title={title} subtitle={activeAlbum?.description || (activeFolder ? "Файлы в семейной папке" : gallerySubtitle(view, filteredAssets.length))} groups={groups} loading={loading} onOpen={setViewer} onUpload={() => setUploadOpen(true)} onRename={activeFolder ? () => setEditingFolder(activeFolder) : undefined} trashed={view === "trash"} />
+            <GalleryView title={title} subtitle={activeAlbum?.description || (activeFolder ? "Файлы в семейной папке" : gallerySubtitle(view, filteredAssets.length))} groups={groups} loading={loading} onOpen={setViewer} onUpload={() => setUploadOpen(true)} onShare={activeFolder ? () => setSharingFolder(activeFolder) : undefined} onRename={activeFolder ? () => setEditingFolder(activeFolder) : undefined} trashed={view === "trash"} />
           )}
         </div>
       </main>
@@ -189,6 +190,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
       {viewer && <AssetViewer asset={viewer} albums={albums} currentUser={user} onClose={() => setViewer(null)} onUpdate={updateAsset} onDelete={() => { setAssets((items) => items.filter((item) => item.id !== viewer.id)); setViewer(null); setToast("Файл удалён навсегда"); }} />}
       {createKind && <CreateModal kind={createKind} onClose={() => setCreateKind(null)} onCreated={() => { setCreateKind(null); setToast(createKind === "album" ? "Альбом создан" : "Папка создана"); loadData(); }} />}
       {editingFolder && <RenameFolderModal folder={editingFolder} onClose={() => setEditingFolder(null)} onRenamed={(updated) => { setFolders((items) => items.map((item) => item.id === updated.id ? updated : item)); setEditingFolder(null); setToast("Папка переименована"); }} />}
+      {sharingFolder && <FolderShareModal folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
       {membersOpen && <MembersModal members={members} currentUser={user} onClose={() => setMembersOpen(false)} />}
       {toast && <div className="toast"><Sparkles />{toast}</div>}
     </div>
@@ -249,9 +251,9 @@ function SearchView({ query, assets, albums, loading, onOpenAsset, onOpenAlbum }
   </>;
 }
 
-function GalleryView({ title, subtitle, groups, loading, onOpen, onUpload, onRename, trashed }: { title: string; subtitle: string; groups: [string, Asset[]][]; loading: boolean; onOpen: (a: Asset) => void; onUpload: () => void; onRename?: () => void; trashed: boolean }) {
+function GalleryView({ title, subtitle, groups, loading, onOpen, onUpload, onShare, onRename, trashed }: { title: string; subtitle: string; groups: [string, Asset[]][]; loading: boolean; onOpen: (a: Asset) => void; onUpload: () => void; onShare?: () => void; onRename?: () => void; trashed: boolean }) {
   const total = groups.reduce((sum, [, items]) => sum + items.length, 0);
-  return <><div className="page-heading"><div><div className="eyebrow"><CalendarDays /> По времени и событиям</div><h1>{title}</h1><p>{subtitle}</p></div><div className="page-heading-actions">{onRename && <button className="button button--secondary" onClick={onRename}><Pencil /> Переименовать</button>}{!trashed && <button className="button button--secondary" onClick={onUpload}><Upload /> Добавить</button>}</div></div>
+  return <><div className="page-heading"><div><div className="eyebrow"><CalendarDays /> По времени и событиям</div><h1>{title}</h1><p>{subtitle}</p></div><div className="page-heading-actions">{onShare && <button className="button button--secondary" onClick={onShare}><Share2 /> Поделиться</button>}{onRename && <button className="button button--secondary" onClick={onRename}><Pencil /> Переименовать</button>}{!trashed && <button className="button button--secondary" onClick={onUpload}><Upload /> Добавить</button>}</div></div>
     {loading ? <SkeletonGrid /> : total ? groups.map(([label, items]) => <section className="timeline-group" key={label}><div className="timeline-head"><h2>{label}</h2><span>{items.length} {plural(items.length, "момент", "момента", "моментов")}</span></div><div className="asset-grid">{items.map((asset) => <AssetCard key={asset.id} asset={asset} onOpen={() => onOpen(asset)} />)}</div></section>) : <EmptyState onUpload={onUpload} hiddenUpload={trashed} />}
   </>;
 }
@@ -303,6 +305,50 @@ function RenameFolderModal({ folder, onClose, onRenamed }: { folder: FolderType;
   }
 
   return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="small-modal"><button className="modal-close" onClick={onClose}><X /></button><div className="modal-icon"><Pencil /></div><h2>Переименовать папку</h2><p>Название изменится у всех участников семейного архива.</p><form onSubmit={submit}><label>Название<input value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} autoFocus /></label>{error && <div className="form-error">{error}</div>}<button className="button button--primary button--wide" disabled={loading || !name.trim()}>{loading ? "Сохраняем…" : "Сохранить название"}</button></form></div></div>;
+}
+
+function FolderShareModal({ folder, onClose }: { folder: FolderType; onClose: () => void }) {
+  const started = useRef(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    async function createShare() {
+      try {
+        const response = await fetch(`/api/folders/${folder.id}/share`, { method: "POST" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Не удалось создать ссылку");
+        const url = new URL(data.path, window.location.origin).toString();
+        setShareUrl(url);
+        try { await navigator.clipboard.writeText(url); setCopied(true); } catch { /* The URL remains available for manual copying. */ }
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Не удалось создать ссылку");
+      } finally {
+        setLoading(false);
+      }
+    }
+    createShare();
+  }, [folder.id]);
+
+  async function copyShare() {
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); }
+    catch { setError("Браузер запретил доступ к буферу. Скопируйте ссылку из поля вручную."); }
+  }
+
+  async function revokeShares() {
+    setLoading(true);
+    setError("");
+    const response = await fetch(`/api/folders/${folder.id}/share`, { method: "DELETE" });
+    const data = await response.json();
+    if (response.ok) onClose();
+    else { setError(data.error || "Не удалось отключить ссылки"); setLoading(false); }
+  }
+
+  return <div className="share-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="share-dialog" role="dialog" aria-modal="true" aria-labelledby="folder-share-title"><button className="modal-close share-dialog-close" onClick={onClose} aria-label="Закрыть"><X /></button><div className="modal-icon"><Link2 /></div><h2 id="folder-share-title">Поделиться папкой</h2><p>Публичная ссылка на папку «{folder.name}» откроется без входа в семейный архив.</p>{loading && !shareUrl ? <div className="share-dialog-loading">Создаём защищённую ссылку…</div> : <div className="share-link-field"><input value={shareUrl} readOnly onFocus={(event) => event.currentTarget.select()} aria-label="Публичная ссылка на папку" /><button onClick={copyShare} disabled={!shareUrl}>{copied ? <CheckCircle2 /> : <Copy />}{copied ? "Скопировано" : "Копировать"}</button></div>}{error && <div className="share-dialog-error">{error}</div>}<div className="share-dialog-warning"><ShieldAlert /><span><b>Важно:</b> любой человек по ссылке увидит текущие и будущие файлы этой папки. Комментарии и остальной архив останутся закрытыми.</span></div><div className="share-dialog-actions"><button className="share-revoke" onClick={revokeShares} disabled={loading || !shareUrl}>Отключить публичные ссылки</button>{shareUrl && <a className="button button--primary" href={shareUrl} target="_blank" rel="noreferrer"><ExternalLink /> Открыть</a>}</div></div></div>;
 }
 
 function MembersModal({ members, currentUser, onClose }: { members: User[]; currentUser: User; onClose: () => void }) {

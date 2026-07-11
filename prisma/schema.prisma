@@ -8,32 +8,34 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  email            String            @unique
-  name             String
-  passwordHash     String
-  role             String            @default("member")
-  avatarColor      String            @default("#C96E48")
-  createdAt        DateTime          @default(now())
-  assets           Asset[]
-  albums           Album[]
-  folders          Folder[]
-  comments         AssetComment[]
-  assetReactions   AssetReaction[]
-  commentReactions CommentReaction[]
-  publicShares     ShareLink[]
+  id                 String            @id @default(cuid())
+  email              String            @unique
+  name               String
+  passwordHash       String
+  role               String            @default("member")
+  avatarColor        String            @default("#C96E48")
+  createdAt          DateTime          @default(now())
+  assets             Asset[]
+  albums             Album[]
+  folders            Folder[]
+  comments           AssetComment[]
+  assetReactions     AssetReaction[]
+  commentReactions   CommentReaction[]
+  publicShares       ShareLink[]
+  publicFolderShares FolderShareLink[]
 }
 
 model Folder {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  ownerId   String
-  parentId  String?
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id])
-  children  Folder[] @relation("FolderTree")
-  assets    Asset[]
+  id           String            @id @default(cuid())
+  name         String
+  createdAt    DateTime          @default(now())
+  ownerId      String
+  parentId     String?
+  owner        User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent       Folder?           @relation("FolderTree", fields: [parentId], references: [id])
+  children     Folder[]          @relation("FolderTree")
+  assets       Asset[]
+  publicShares FolderShareLink[]
 }
 
 model Asset {
@@ -144,4 +146,17 @@ model ShareLink {
   createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([assetId, revokedAt])
+}
+
+model FolderShareLink {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  folderId    String
+  createdById String
+  folder      Folder    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([folderId, revokedAt])
 }

@@ -17,3 +17,11 @@ export async function findActiveShare(token: string) {
     include: { asset: true },
   });
 }
+
+export async function findActiveFolderShare(token: string) {
+  if (!/^[A-Za-z0-9_-]{40,80}$/.test(token)) return null;
+  return db.folderShareLink.findFirst({
+    where: { tokenHash: hashShareToken(token), revokedAt: null },
+    include: { folder: true },
+  });
+}
