@@ -33,6 +33,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
   const [viewer, setViewer] = useState<Asset | null>(null);
   const [createKind, setCreateKind] = useState<"album" | "folder" | null>(null);
   const [editingFolder, setEditingFolder] = useState<FolderType | null>(null);
+  const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [sharingFolder, setSharingFolder] = useState<FolderType | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -177,11 +178,11 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
           {normalizedQuery ? (
             <SearchView query={query.trim()} assets={searchAssets} albums={searchAlbums} loading={loading} onOpenAsset={setViewer} onOpenAlbum={(id) => navigate(`album:${id}`)} />
           ) : view === "home" ? (
-            <HomeView user={user} photos={photos} videos={videos} albums={albums} assets={assets.filter((a) => !a.trashed).slice(0, 10)} navigate={navigate} onUpload={() => setUploadOpen(true)} onOpen={setViewer} onNewAlbum={() => setCreateKind("album")} loading={loading} />
+            <HomeView user={user} photos={photos} videos={videos} albums={albums} assets={assets.filter((a) => !a.trashed).slice(0, 10)} navigate={navigate} onUpload={() => setUploadOpen(true)} onOpen={setViewer} onNewAlbum={() => setCreateKind("album")} onEditAlbum={setEditingAlbum} loading={loading} />
           ) : view === "albums" ? (
-            <AlbumsView albums={albums} onOpen={(id) => navigate(`album:${id}`)} onCreate={() => setCreateKind("album")} loading={loading} />
+            <AlbumsView albums={albums} onOpen={(id) => navigate(`album:${id}`)} onCreate={() => setCreateKind("album")} onEdit={setEditingAlbum} loading={loading} />
           ) : (
-            <GalleryView title={title} subtitle={activeAlbum?.description || (activeFolder ? "Файлы в семейной папке" : gallerySubtitle(view, filteredAssets.length))} groups={groups} loading={loading} onOpen={setViewer} onUpload={() => setUploadOpen(true)} onShare={activeFolder ? () => setSharingFolder(activeFolder) : undefined} onRename={activeFolder ? () => setEditingFolder(activeFolder) : undefined} trashed={view === "trash"} />
+            <GalleryView title={title} subtitle={activeAlbum?.description || (activeFolder ? "Файлы в семейной папке" : gallerySubtitle(view, filteredAssets.length))} groups={groups} loading={loading} onOpen={setViewer} onUpload={() => setUploadOpen(true)} onShare={activeFolder ? () => setSharingFolder(activeFolder) : undefined} onRename={activeFolder ? () => setEditingFolder(activeFolder) : activeAlbum ? () => setEditingAlbum(activeAlbum) : undefined} beforeContent={view === "files" ? <FolderPreviewSection folders={folders} assets={assets} onOpen={(id) => navigate(`folder:${id}`)} /> : undefined} trashed={view === "trash"} />
           )}
         </div>
       </main>
@@ -190,6 +191,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
       {viewer && <AssetViewer asset={viewer} albums={albums} currentUser={user} onClose={() => setViewer(null)} onUpdate={updateAsset} onDelete={() => { setAssets((items) => items.filter((item) => item.id !== viewer.id)); setViewer(null); setToast("Файл удалён навсегда"); }} />}
       {createKind && <CreateModal kind={createKind} onClose={() => setCreateKind(null)} onCreated={() => { setCreateKind(null); setToast(createKind === "album" ? "Альбом создан" : "Папка создана"); loadData(); }} />}
       {editingFolder && <RenameFolderModal folder={editingFolder} onClose={() => setEditingFolder(null)} onRenamed={(updated) => { setFolders((items) => items.map((item) => item.id === updated.id ? updated : item)); setEditingFolder(null); setToast("Папка переименована"); }} />}
+      {editingAlbum && <RenameAlbumModal album={editingAlbum} onClose={() => setEditingAlbum(null)} onRenamed={(updated) => { setAlbums((items) => items.map((item) => item.id === updated.id ? updated : item)); setEditingAlbum(null); setToast("Альбом переименован"); }} />}
       {sharingFolder && <FolderShareModal folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
       {membersOpen && <MembersModal members={members} currentUser={user} onClose={() => setMembersOpen(false)} />}
       {toast && <div className="toast"><Sparkles />{toast}</div>}
@@ -213,7 +215,7 @@ function Avatar({ user }: { user: Pick<User, "name" | "avatarColor"> }) {
   return <span className="avatar" style={{ background: user.avatarColor }}>{initials}</span>;
 }
 
-function HomeView({ user, photos, videos, albums, assets, navigate, onUpload, onOpen, onNewAlbum, loading }: { user: User; photos: number; videos: number; albums: Album[]; assets: Asset[]; navigate: (v: View) => void; onUpload: () => void; onOpen: (a: Asset) => void; onNewAlbum: () => void; loading: boolean }) {
+function HomeView({ user, photos, videos, albums, assets, navigate, onUpload, onOpen, onNewAlbum, onEditAlbum, loading }: { user: User; photos: number; videos: number; albums: Album[]; assets: Asset[]; navigate: (v: View) => void; onUpload: () => void; onOpen: (a: Asset) => void; onNewAlbum: () => void; onEditAlbum: (album: Album) => void; loading: boolean }) {
   const firstName = user.name.split(" ")[0];
   return <>
     <section className="welcome-row">
@@ -228,15 +230,15 @@ function HomeView({ user, photos, videos, albums, assets, navigate, onUpload, on
     {loading ? <SkeletonGrid /> : assets.length ? <div className="asset-grid asset-grid--recent">{assets.slice(0, 6).map((asset) => <AssetCard asset={asset} key={asset.id} onOpen={() => onOpen(asset)} />)}</div> : <EmptyState onUpload={onUpload} compact />}
     <SectionHead title="Семейные альбомы" action="Все альбомы" onAction={() => navigate("albums")} />
     <div className="album-grid album-grid--home">
-      {albums.slice(0, 3).map((album) => <AlbumCard key={album.id} album={album} onOpen={() => navigate(`album:${album.id}`)} />)}
+      {albums.slice(0, 3).map((album) => <AlbumCard key={album.id} album={album} onOpen={() => navigate(`album:${album.id}`)} onEdit={() => onEditAlbum(album)} />)}
       <button className="new-album-card" onClick={onNewAlbum}><span><Plus /></span><b>Новый альбом</b><small>Соберите особенную историю</small></button>
     </div>
   </>;
 }
 
-function AlbumsView({ albums, onOpen, onCreate, loading }: { albums: Album[]; onOpen: (id: string) => void; onCreate: () => void; loading: boolean }) {
+function AlbumsView({ albums, onOpen, onCreate, onEdit, loading }: { albums: Album[]; onOpen: (id: string) => void; onCreate: () => void; onEdit: (album: Album) => void; loading: boolean }) {
   return <><div className="page-heading"><div><div className="eyebrow"><AlbumIcon /> Ваша коллекция</div><h1>Семейные альбомы</h1><p>Истории, собранные по событиям, людям и временам года.</p></div><button className="button button--secondary" onClick={onCreate}><Plus /> Новый альбом</button></div>
-    {loading ? <SkeletonGrid /> : <div className="album-grid"><button className="new-album-card new-album-card--large" onClick={onCreate}><span><Plus /></span><b>Создать альбом</b><small>Дайте истории красивое начало</small></button>{albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => onOpen(album.id)} />)}</div>}
+    {loading ? <SkeletonGrid /> : <div className="album-grid"><button className="new-album-card new-album-card--large" onClick={onCreate}><span><Plus /></span><b>Создать альбом</b><small>Дайте истории красивое начало</small></button>{albums.map((album) => <AlbumCard key={album.id} album={album} onOpen={() => onOpen(album.id)} onEdit={() => onEdit(album)} />)}</div>}
   </>;
 }
 
@@ -251,10 +253,10 @@ function SearchView({ query, assets, albums, loading, onOpenAsset, onOpenAlbum }
   </>;
 }
 
-function GalleryView({ title, subtitle, groups, loading, onOpen, onUpload, onShare, onRename, trashed }: { title: string; subtitle: string; groups: [string, Asset[]][]; loading: boolean; onOpen: (a: Asset) => void; onUpload: () => void; onShare?: () => void; onRename?: () => void; trashed: boolean }) {
+function GalleryView({ title, subtitle, groups, loading, onOpen, onUpload, onShare, onRename, beforeContent, trashed }: { title: string; subtitle: string; groups: [string, Asset[]][]; loading: boolean; onOpen: (a: Asset) => void; onUpload: () => void; onShare?: () => void; onRename?: () => void; beforeContent?: React.ReactNode; trashed: boolean }) {
   const total = groups.reduce((sum, [, items]) => sum + items.length, 0);
   return <><div className="page-heading"><div><div className="eyebrow"><CalendarDays /> По времени и событиям</div><h1>{title}</h1><p>{subtitle}</p></div><div className="page-heading-actions">{onShare && <button className="button button--secondary" onClick={onShare}><Share2 /> Поделиться</button>}{onRename && <button className="button button--secondary" onClick={onRename}><Pencil /> Переименовать</button>}{!trashed && <button className="button button--secondary" onClick={onUpload}><Upload /> Добавить</button>}</div></div>
-    {loading ? <SkeletonGrid /> : total ? groups.map(([label, items]) => <section className="timeline-group" key={label}><div className="timeline-head"><h2>{label}</h2><span>{items.length} {plural(items.length, "момент", "момента", "моментов")}</span></div><div className="asset-grid">{items.map((asset) => <AssetCard key={asset.id} asset={asset} onOpen={() => onOpen(asset)} />)}</div></section>) : <EmptyState onUpload={onUpload} hiddenUpload={trashed} />}
+    {beforeContent}{loading ? <SkeletonGrid /> : total ? groups.map(([label, items]) => <section className="timeline-group" key={label}><div className="timeline-head"><h2>{label}</h2><span>{items.length} {plural(items.length, "момент", "момента", "моментов")}</span></div><div className="asset-grid">{items.map((asset) => <AssetCard key={asset.id} asset={asset} onOpen={() => onOpen(asset)} />)}</div></section>) : <EmptyState onUpload={onUpload} hiddenUpload={trashed} />}
   </>;
 }
 
@@ -271,12 +273,36 @@ function AssetCard({ asset, onOpen }: { asset: Asset; onOpen: () => void }) {
   </article>;
 }
 
-function AlbumCard({ album, onOpen }: { album: Album; onOpen: () => void }) {
-  const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
-  return <button className={clsx("album-card", `album-card--${album.color}`)} onClick={onOpen}>
-    <div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Ф</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div>
-    <div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div>
+function FolderPreviewSection({ folders, assets, onOpen }: { folders: FolderType[]; assets: Asset[]; onOpen: (id: string) => void }) {
+  if (!folders.length) return null;
+  return <section className="folder-preview-section"><div className="section-head folder-preview-head"><h2>Папки</h2><span>Последние добавленные файлы</span></div><div className="folder-preview-grid">{folders.map((folder) => <FolderPreviewCard key={folder.id} folder={folder} assets={assets.filter((asset) => asset.folderId === folder.id && !asset.trashed)} onOpen={() => onOpen(folder.id)} />)}</div></section>;
+}
+
+function FolderPreviewCard({ folder, assets, onOpen }: { folder: FolderType; assets: Asset[]; onOpen: () => void }) {
+  const ordered = [...assets].sort((left, right) => new Date(right.uploadedAt).getTime() - new Date(left.uploadedAt).getTime());
+  const previews = ordered.slice(0, 4);
+  return <button className="folder-preview-card" onClick={onOpen}>
+    <div className={clsx("folder-preview-collage", `folder-preview-collage--${previews.length || 0}`)}>
+      {previews.length ? previews.map((asset, index) => <FolderPreviewItem key={asset.id} asset={asset} extra={index === previews.length - 1 ? Math.max(0, ordered.length - previews.length) : 0} />) : <div className="folder-preview-empty"><Folder /><span>Папка пуста</span></div>}
+    </div>
+    <div className="folder-preview-meta"><span><Folder /><b>{folder.name}</b></span><small>{ordered.length} {plural(ordered.length, "файл", "файла", "файлов")}{ordered[0] ? ` · обновлена ${format(new Date(ordered[0].uploadedAt), "d MMMM", { locale: ru })}` : ""}</small></div>
   </button>;
+}
+
+function FolderPreviewItem({ asset, extra }: { asset: Asset; extra: number }) {
+  const audio = isAudioAsset(asset);
+  return <div className={clsx("folder-preview-item", audio && "folder-preview-item--audio", !asset.thumbnailName && !audio && "folder-preview-item--file")} title={asset.title || asset.originalName}>
+    {asset.thumbnailName ? <img src={`/media/thumbs/${asset.thumbnailName}`} alt="" loading="lazy" /> : audio ? <><AudioLines /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Аудио"}</span></> : asset.type === "video" ? <><Video /><span>Видео</span></> : <><File /><span>{asset.originalName.split(".").pop()?.toUpperCase() || "Файл"}</span></>}
+    {asset.type === "video" && asset.thumbnailName && <i><Video /></i>}{extra > 0 && <em>+{extra}</em>}
+  </div>;
+}
+
+function AlbumCard({ album, onOpen, onEdit }: { album: Album; onOpen: () => void; onEdit?: () => void }) {
+  const covers = album.assets.map((item) => item.asset).filter((asset) => asset.thumbnailName).slice(0, 3);
+  return <article className={clsx("album-card", `album-card--${album.color}`)}>
+    <button className="album-card-main" onClick={onOpen}><div className="album-cover">{covers.length ? covers.map((asset, index) => <img key={asset.id} src={`/media/thumbs/${asset.thumbnailName}`} alt="" style={{ zIndex: 3 - index }} />) : <div className="album-placeholder"><span>Ф</span><small>семейная<br />история</small></div>}<span className="album-count">{album._count.assets}</span></div><div className="album-meta"><h3>{album.title}</h3><p>{album.description || "Семейные воспоминания"}</p><small><b>{album._count.assets} {plural(album._count.assets, "файл", "файла", "файлов")}</b><i>·</i> Создан {format(new Date(album.createdAt), "d MMMM yyyy", { locale: ru })}</small></div></button>
+    {onEdit && <button className="album-edit-button" onClick={onEdit} aria-label={`Переименовать альбом ${album.title}`} title="Переименовать"><Pencil /></button>}
+  </article>;
 }
 
 function SectionHead({ title, action, onAction }: { title: string; action: string; onAction: () => void }) { return <div className="section-head"><h2>{title}</h2><button onClick={onAction}>{action} <span>→</span></button></div>; }
@@ -305,6 +331,24 @@ function RenameFolderModal({ folder, onClose, onRenamed }: { folder: FolderType;
   }
 
   return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="small-modal"><button className="modal-close" onClick={onClose}><X /></button><div className="modal-icon"><Pencil /></div><h2>Переименовать папку</h2><p>Название изменится у всех участников семейного архива.</p><form onSubmit={submit}><label>Название<input value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} autoFocus /></label>{error && <div className="form-error">{error}</div>}<button className="button button--primary button--wide" disabled={loading || !name.trim()}>{loading ? "Сохраняем…" : "Сохранить название"}</button></form></div></div>;
+}
+
+function RenameAlbumModal({ album, onClose, onRenamed }: { album: Album; onClose: () => void; onRenamed: (album: Album) => void }) {
+  const [title, setTitle] = useState(album.title);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    const response = await fetch(`/api/albums/${album.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+    const data = await response.json();
+    if (response.ok) onRenamed(data);
+    else { setError(data.error || "Не удалось переименовать альбом"); setLoading(false); }
+  }
+
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="small-modal"><button className="modal-close" onClick={onClose}><X /></button><div className="modal-icon"><Pencil /></div><h2>Переименовать альбом</h2><p>Новое название сразу увидят все участники семейного архива.</p><form onSubmit={submit}><label>Название<input value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={100} autoFocus /></label>{error && <div className="form-error">{error}</div>}<button className="button button--primary button--wide" disabled={loading || !title.trim()}>{loading ? "Сохраняем…" : "Сохранить название"}</button></form></div></div>;
 }
 
 function FolderShareModal({ folder, onClose }: { folder: FolderType; onClose: () => void }) {
