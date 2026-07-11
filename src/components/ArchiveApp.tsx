@@ -185,7 +185,7 @@ export default function ArchiveApp({ initialUser }: { initialUser: User }) {
       </main>
 
       {uploadOpen && <UploadModal albums={albums} folders={folders} defaultAlbumId={activeAlbum?.id} onClose={() => setUploadOpen(false)} onDone={(count) => { setUploadOpen(false); setToast(`${count} ${plural(count, "файл добавлен", "файла добавлены", "файлов добавлено")}`); loadData(); }} />}
-      {viewer && <AssetViewer asset={viewer} albums={albums} onClose={() => setViewer(null)} onUpdate={updateAsset} onDelete={() => { setAssets((items) => items.filter((item) => item.id !== viewer.id)); setViewer(null); setToast("Файл удалён навсегда"); }} />}
+      {viewer && <AssetViewer asset={viewer} albums={albums} currentUser={user} onClose={() => setViewer(null)} onUpdate={updateAsset} onDelete={() => { setAssets((items) => items.filter((item) => item.id !== viewer.id)); setViewer(null); setToast("Файл удалён навсегда"); }} />}
       {createKind && <CreateModal kind={createKind} onClose={() => setCreateKind(null)} onCreated={() => { setCreateKind(null); setToast(createKind === "album" ? "Альбом создан" : "Папка создана"); loadData(); }} />}
       {membersOpen && <MembersModal members={members} currentUser={user} onClose={() => setMembersOpen(false)} />}
       {toast && <div className="toast"><Sparkles />{toast}</div>}
